@@ -156,12 +156,12 @@ const App = () => {
   };
 
   const resetApp = async () => {
+    
     await web3Modal.clearCachedProvider();
     localStorage.removeItem("WEB3_CONNECT_CACHED_PROVIDER");
     localStorage.removeItem("walletconnect");
     await unSubscribe(provider);
 
-    resetState();
   };
 
   const resetState = () => {
