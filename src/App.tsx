@@ -50,10 +50,10 @@ const SBalances = styled(SLanding)`
   }
 `;
 
+let web3Modal: Web3Modal;
 const App = () => {
-  const [web3Modal, setWeb3Modal] = useState<Web3Modal | any>(null);
-  const [provider, setProvider] = useState<any>();
 
+  const [provider, setProvider] = useState<any>();
   const [fetching, setFetching] = useState<boolean>(false);
   const [address, setAddress] = useState<string>("");
   const [library, setLibrary] = useState<any>(null);
@@ -65,20 +65,20 @@ const App = () => {
   const [info, setInfo] = useState<any>(null);
 
   useEffect(() => {
-    if (web3Modal && web3Modal.cachedProvider) {
+    createWeb3Modal();
+    
+    if (web3Modal.cachedProvider) {
       onConnect();
-    } else {
-      createWeb3Modal();
     }
 
   }, []);
 
   function createWeb3Modal() {
-    setWeb3Modal(new Web3Modal({
+    web3Modal = new Web3Modal({
       network: getNetwork(),
       cacheProvider: true,
       providerOptions: getProviderOptions()
-    }))
+    })
   }
 
   const onConnect = async () => {
