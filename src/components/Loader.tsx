@@ -26,7 +26,8 @@ interface ILoaderStyleProps {
 }
 
 interface ILoaderProps extends ILoaderStyleProps {
-  color: string
+  color: string,
+  transactionHash?: string,
 }
 
 const SLoader = styled.svg<ILoaderStyleProps>`
@@ -34,12 +35,14 @@ const SLoader = styled.svg<ILoaderStyleProps>`
   height: ${({ size }) => `${size}px`};
   animation: ${load} 1s infinite cubic-bezier(0.25, 0, 0.75, 1);
   transform: translateZ(0);
+  margin: 20px 0;
 `
 
 const Loader = (props: ILoaderProps) => {
-  const { size, color } = props
+  const { size, color, transactionHash } = props
   const rgb = `rgb(${colors[color]})`
   return (
+    <>
     <SLoader viewBox="0 0 186 187" size={size}>
       <g stroke="none" strokeWidth="1" fill="none" fillRule="evenodd">
         <path
@@ -58,8 +61,25 @@ const Loader = (props: ILoaderProps) => {
           rx="35"
         />
       </g>
+  
     </SLoader>
-  )
+    {transactionHash
+    ?
+      <div style={{fontSize: 20}}>
+        <div>{transactionHash}</div>
+        <div>Your transaction is being mined at the moment...</div>
+        <div>
+          <a style={{color: 'rgb(64,153,255)'}}
+            href={`https://ropsten.etherscan.io/tx/${transactionHash}`}
+            target="_blank"
+          >
+            You can view it on etherscan
+          </a>
+        </div>
+      </div>
+    : null
+    }
+    </>)
 }
 
 Loader.propTypes = {

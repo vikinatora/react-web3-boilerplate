@@ -13,7 +13,13 @@ import Loader from './components/Loader';
 import ConnectButton from './components/ConnectButton';
 
 import { Web3Provider } from '@ethersproject/providers';
-import { getChainData } from './helpers/utilities';
+import { getChainData, showNotification } from './helpers/utilities';
+import { LIBRARY_CONTRACT_ADDRESS } from './constants/constants';
+import BOOK_LIBRARY from "./constants/contracts/BookLibrary.json";
+import { getContract } from './helpers/ethers';
+import BookLibrary from './components/BookLibrary';
+import IBook from './models/interfaces/IBook';
+import MiningSvg from "./assets/mining.svg";
 
 const SLayout = styled.div`
   position: relative;
@@ -55,6 +61,7 @@ const App = () => {
 
   const [provider, setProvider] = useState<any>();
   const [fetching, setFetching] = useState<boolean>(false);
+  const [fetchingBooks, setFetchingBooks] = useState<boolean>(true);
   const [address, setAddress] = useState<string>("");
   const [library, setLibrary] = useState<any>(null);
   const [connected, setConnected] = useState<boolean>(false);
@@ -63,6 +70,13 @@ const App = () => {
   const [result, setResult] = useState<any>();
   const [libraryContract, setLibraryContract] = useState<any>(null);
   const [info, setInfo] = useState<any>(null);
+  const [transactionHash, setTransactionHash] = useState<string>("");
+  const [books, setBooks] = useState<IBook[]>([])
+  const [bookInfo, setBookInfo] = useState<IBook>({
+    Title:"",
+    Copies: 0,
+    IsBorrowed: false
+  })
 
   useEffect(() => {
     createWeb3Modal();
@@ -90,12 +104,17 @@ const App = () => {
     const network = await library.getNetwork();
 
     const address = provider.selectedAddress ? provider.selectedAddress : provider?.accounts[0];
+    
+    const libraryContract = getContract(LIBRARY_CONTRACT_ADDRESS, BOOK_LIBRARY.abi, library, address);
     setLibrary(library);
     setChainId(network.chainId);
     setAddress(address);
     setConnected(true);
+    setLibraryContract(libraryContract);
     
     await subscribeToProviderEvents(provider);
+
+    await fetchBooks(libraryContract);
   };
 
   const subscribeToProviderEvents = async (provider:any) => {
@@ -175,31 +194,137 @@ const App = () => {
     setLibraryContract(null);
     setInfo(null);
   }
+  const borrowBook = async (title: string) => {
+    try {
+      if (books.filter(b => b.Title === title).length) {
+        const transaction = await libraryContract.borrowBook(title);
+        setFetching(true);
+        setTransactionHash(transaction.hash)
+        const receipt = await transaction.wait();
+        if(receipt.status !== 1) {
+          alert("Transaction failed");
+        }
+        showNotification(`Successfully borrowed ${title} from the library`);
+        setFetching(false);
+        fetchBooks();
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Transaction failed");
+    }
+  }
+
+  const fetchBooks = async (libContract?: any) => {
+    try {
+      const newBooks: IBook[] = [];
+      setFetchingBooks(true);
+      const contract = libraryContract || libContract;
+      const booksCount = (await contract.getBooksCount()).toNumber();
+      for (let i = 0; i < booksCount; i++) {
+        const bookId = await contract.booksIds(i);
+        const book = await contract.books(bookId);
+        const isBorrowed = await contract.isBookBorrowedByCurrentUser(book.name);
+        newBooks.push({Title: book.name, Copies: book.copies, IsBorrowed: isBorrowed});
+      }
+      setBooks(newBooks);
+      setFetchingBooks(false);
+    } catch(err) {
+      setBooks([]);
+      setFetchingBooks(false);
+      alert("Failed to load books...");
+    }
+  }
+
+  const submitBook = async () => {
+    try {
+      if (bookInfo.Title && bookInfo.Copies) {
+        const transaction = await libraryContract.addBook(bookInfo.Title, +bookInfo.Copies);
+        setFetching(true);
+        setTransactionHash(transaction.hash)
+        const receipt = await transaction.wait();
+        if(receipt.status !== 1) {
+          alert("Transaction failed");
+        }
+        showNotification(`Successfully added "${bookInfo.Title}" to the library!`)
+        setFetching(false);
+        fetchBooks();
+      } else {
+        alert("Invalid title or copies")
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Transaction failed");
+    }
+  }
+
+  const handleChange = (e: any) => {
+    const newInfo = {...bookInfo, [e.target.name]: e.target.value}
+    setBookInfo(newInfo);
+  }
+
+  const returnBook = async (title: string) => {
+    try {
+      if (books.filter(b => b.Title === title).length) {
+        const transaction = await libraryContract.returnBook(title);
+        setFetching(true);
+        setTransactionHash(transaction.hash)
+        const receipt = await transaction.wait();
+        if(receipt.status !== 1) {
+          alert("Transaction failed");
+        }
+        showNotification("Successfully returned book!")
+        setFetching(false);
+        fetchBooks();
+      } else {
+        alert("Books doesn't exist or isn't available");
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Transaction failed");
+    }
+
+  }
 
   return (
-    <SLayout>
-      <Column maxWidth={1000} spanHeight>
-        <Header
-          connected={connected}
-          address={address}
-          chainId={chainId}
-          killSession={resetApp}
-        />
-        <SContent>
-          {fetching ? (
-            <Column center>
-              <SContainer>
-                <Loader />
-              </SContainer>
-            </Column>
-          ) : (
-              <SLanding center>
-                {!connected && <ConnectButton onClick={onConnect} />}
-              </SLanding>
-            )}
-        </SContent>
-      </Column>
-    </SLayout>
+      <SLayout>
+        <Column maxWidth={1000} spanHeight>
+          <Header
+            connected={connected}
+            address={address}
+            chainId={chainId}
+            killSession={resetApp}
+          />
+          <SContent>
+              {fetching ? (
+                <Column center>
+                  <SContainer>
+                    <Loader transactionHash={transactionHash} />
+                  </SContainer>
+                </Column>
+              ) :
+                !connected ?
+                  <SLanding center>
+                    <ConnectButton onClick={onConnect} />
+                  </SLanding> :
+                  <SLanding>
+                    <BookLibrary
+                      books={books}
+                      borrowBook={borrowBook}
+                      fetchBooks={fetchBooks}
+                      submitBook={submitBook}
+                      handleChange={handleChange}
+                      bookInfo={bookInfo}
+                      returnBook={returnBook}
+                      fetchingBooks={fetchingBooks}
+                    />
+                  </SLanding>
+              }
+            </SContent>
+        </Column>
+      </SLayout>
   );
 }
 export default App;

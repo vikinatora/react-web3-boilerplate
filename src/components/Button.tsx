@@ -11,6 +11,7 @@ interface IButtonStyleProps {
   disabled: boolean
   icon: any
   left: boolean
+  width?: string
 }
 
 interface IButtonProps extends IButtonStyleProps {
@@ -61,7 +62,7 @@ const SButton = styled.button<IButtonStyleProps>`
     icon ? (left ? '7px 12px 8px 28px' : '7px 28px 8px 12px') : '8px 12px'};
   cursor: ${({ disabled }) => (disabled ? 'auto' : 'pointer')};
   will-change: transform;
-
+  width: ${({width}) => (width ? width : 'auto')};
   &:disabled {
     opacity: 0.6;
     box-shadow: ${({ outline }) => (outline ? 'none' : `${shadows.soft}`)};
