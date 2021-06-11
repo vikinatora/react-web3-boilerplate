@@ -131,10 +131,6 @@ class App extends React.Component<any, any> {
     const bidenSeats = await electionContract.seats(1);
     const trumpSeats = await electionContract.seats(2);
 
-    console.log(bidenSeats);
-    console.log(trumpSeats);
-    console.log(hasElectionEnded);
-
     await this.setState({
       library,
       chainId: network.chainId,
@@ -220,13 +216,18 @@ class App extends React.Component<any, any> {
   };
 
   public getCurrentLeader = async () => {
-    const { electionContract } = this.state;
+    try {
+      const { electionContract } = this.state;
+  
+      const currentLeader = await electionContract.currentLeader();
+      const bidenSeats = await electionContract.seats(1);
+      const trumpSeats = await electionContract.seats(2);
+  
+      await this.setState({ currentLeader, bidenSeats, trumpSeats });
 
-    const currentLeader = await electionContract.currentLeader();
-    const bidenSeats = await electionContract.seats(1);
-    const trumpSeats = await electionContract.seats(2);
-
-    await this.setState({ currentLeader, bidenSeats, trumpSeats });
+    } catch(err) {
+      alert("Failed to update the current leader");
+    }
   };
 
   public submitElectionResult = async (state: string, votesBiden: number, votesTrump: number, seats: number) => {
@@ -240,34 +241,42 @@ class App extends React.Component<any, any> {
     ];
 
     try {
-      await this.setState({ fetching: true });
-      const transaction = await electionContract.submitStateResult(dataArr);
-      console.log(transaction.hash);
-      await this.setState({ transactionHash: transaction.hash });
-
-      const transactionReceipt = await transaction.wait();
-      if (transactionReceipt.status !== 1) {
-        console.log(transactionReceipt);
-        alert("Transaction failed");
+      if (state && votesBiden && votesTrump) {
+        await this.setState({ fetching: true });
+        const transaction = await electionContract.submitStateResult(dataArr);
+        await this.setState({ transactionHash: transaction.hash });
+  
+        const transactionReceipt = await transaction.wait();
+        if (transactionReceipt.status !== 1) {
+          alert("Transaction failed");
+        }
+        await this.getCurrentLeader();
+        await this.setState({ fetching: false, transactionHash: "" });
+      } else {
+        alert("Invalid input data");
+        await this.setState({ fetching: false, transactionHash: "" });
       }
-      await this.getCurrentLeader();
-      await this.setState({ fetching: false, transactionHash: "" });
     } catch (err) {
-      console.log(err);
-      await this.setState({ fetching: false, transactionHash: "" });
+      this.setState({ fetching: false, transactionHash: ""});
       alert("Transaction failed");
     }
 
   };
 
   public endElection = async () => {
-    const { electionContract } = this.state;
+    try {
+      const { electionContract } = this.state;
+  
+      await this.setState({ fetching: true });
+  
+      await electionContract.endElection();
+  
+      await this.setState({ fetching: false, hasElectionEnded: true });
 
-    await this.setState({ fetching: true });
-
-    await electionContract.endElection();
-
-    await this.setState({ fetching: false, hasElectionEnded: true });
+    } catch(err) {
+      await this.setState({ fetching: false });
+      alert("Failed to end election");
+    }
   }
 
   public render = () => {
