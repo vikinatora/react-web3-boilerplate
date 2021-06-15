@@ -113,21 +113,27 @@ const App = () => {
     const web3Library = new Web3Provider(web3Provider);
     const network = await web3Library.getNetwork();
     const address = web3Provider.selectedAddress ? web3Provider.selectedAddress : web3Provider?.accounts[0];
-    
+
     const libraryContract = getContract(LIBRARY_CONTRACT_ADDRESS, BOOK_LIBRARY.abi, web3Library, address);
     
     const wrapperAddress = await libraryContract.LIBTokenWrapper();
+    let isValidAddress = ethers.utils.isAddress(wrapperAddress);
+    console.log(wrapperAddress);
+    console.log(isValidAddress);
     const libTokenWrapper = getContract(wrapperAddress, LIB_WRAPPER.abi, web3Library, address);
     
-    const tokenAddress = await libTokenWrapper.LIBToken();
+    const tokenAddress = await libraryContract.LIBToken();
+    isValidAddress = ethers.utils.isAddress(tokenAddress);
     console.log(tokenAddress);
+    console.log(isValidAddress);
     const libraryToken = getContract(tokenAddress, LIBRARY_TOKEN.abi, web3Library, address);
 
     const libraryTokenBalance = await libraryToken.balanceOf(address);
     const tokenDecimals = await libraryToken.decimals();
     
     const contractBalance = await libTokenWrapper.provider.getBalance(libTokenWrapper.address);
-    
+
+
     setWeb3Provider(web3Provider);
     setWeb3Library(web3Library);
     setChainId(network.chainId);
@@ -142,9 +148,34 @@ const App = () => {
     setLIBBalance(formatToken(libraryTokenBalance, tokenDecimals));
 
     await subscribeToProviderEvents(web3Provider);
+    // await subscribeToContractEvents(libraryContract, tokenAddress);
     await fetchBooks(libraryContract);
 
   };
+
+  const subscribeToContractEvents = async (libraryContract: any, tokenAddress: any) => {
+    libraryContract.on("LogBookAdded", async (bookName: string, copies: number, tx: any) => {
+      showNotification(`${copies} of "${bookName}" have just been added to the library`);
+      await fetchBooks(libraryContract);
+    });
+
+    libraryContract.on("LogBookBorrowed", async (bookName: string, borrower: string, tx: any) => {
+      showNotification(`"${bookName}" has just been borrowed by ${borrower}`);
+      await fetchBooks();
+    });
+
+    libraryContract.on("LogBookReturned", async (bookName: string, returner: string, tx: any) => {
+      showNotification(`"${bookName}" has just been returned by ${returner}`);
+      await fetchBooks();
+    });
+
+    const LibTokenTransferFilter = libraryContract.filters.Transfer(null, tokenAddress, null);
+
+    libraryContract.on(LibTokenTransferFilter, (from: string, to: string, value: string, tx: any) => {
+      showNotification(`${value} ETH have just been transfered from ${from}. Block: ${tx.blockNumber}`);
+    })
+  }
+
 
   const updateBalance = async () => {
     const libraryTokenBalance = await libToken.balanceOf(walletAddress);
@@ -184,6 +215,8 @@ const App = () => {
     provider.off("accountsChanged", changedAccount);
     provider.off("networkChanged", networkChanged);
     provider.off("close", resetApp);
+
+    libraryContract.removeAllListeners();
   }
 
   const changedAccount = async (accounts: string[]) => {
@@ -251,8 +284,8 @@ const App = () => {
           if(receipt.status !== 1) {
             alert("Transaction failed");
           }
-          showNotification(`Successfully borrowed ${title} from the library`);
-          await fetchBooks();
+          // showNotification(`Successfully borrowed ${title} from the library`);
+          // await fetchBooks();
           await updateBalance();
           setFetching(false);
         } else {
@@ -297,9 +330,9 @@ const App = () => {
         if(receipt.status !== 1) {
           alert("Transaction failed");
         }
-        showNotification(`Successfully added "${bookInfo.Title}" to the library!`)
+        // showNotification(`Successfully added "${bookInfo.Title}" to the library!`)
+        // fetchBooks();
         setFetching(false);
-        fetchBooks();
       } else {
         alert("Invalid title or copies")
       }
@@ -325,9 +358,9 @@ const App = () => {
         if(receipt.status !== 1) {
           alert("Transaction failed");
         }
-        showNotification("Successfully returned book!")
+        // showNotification("Successfully returned book!")
+        // fetchBooks();
         setFetching(false);
-        fetchBooks();
       } else {
         alert("Books doesn't exist or isn't available");
       }
@@ -360,7 +393,7 @@ const App = () => {
 
   const withdrawLIB = async () => {
     const unwrapValue = ethers.utils.parseEther("0.01");
-    const result = await libToken.approve(libraryContract.address, BigNumber.from("10000000000000000"))
+    const result = await libToken.approve(libWrapperContract.address, BigNumber.from("10000000000000000"))
     console.log(result);
     if (result) {
       const unwrapTx = await libWrapperContract.unwrap(unwrapValue);
@@ -381,7 +414,6 @@ const App = () => {
     } else {
       alert("Increase allowance failed")
     }
-
   }
 
   const formatToken = (wei: BigNumber, decimals: number = 18) => {
