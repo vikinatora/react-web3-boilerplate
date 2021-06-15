@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useEffect, useState } from "react";
-
+import {BigNumber, ethers} from "ethers";
 import styled from 'styled-components';
 
 import Web3Modal from 'web3modal';
@@ -11,15 +11,21 @@ import Wrapper from './components/Wrapper';
 import Header from './components/Header';
 import Loader from './components/Loader';
 import ConnectButton from './components/ConnectButton';
+import BookLibrary from './components/BookLibrary';
+import IBook from './models/interfaces/IBook';
 
 import { Web3Provider } from '@ethersproject/providers';
 import { getChainData, showNotification } from './helpers/utilities';
-import { LIBRARY_CONTRACT_ADDRESS } from './constants/constants';
-import BOOK_LIBRARY from "./constants/contracts/BookLibrary.json";
 import { getContract } from './helpers/ethers';
-import BookLibrary from './components/BookLibrary';
-import IBook from './models/interfaces/IBook';
-import MiningSvg from "./assets/mining.svg";
+
+import {
+  LIBRARY_CONTRACT_ADDRESS,
+  } from './constants/constants';
+
+import BOOK_LIBRARY from "./constants/contracts/BookLibrary.json";
+import LIBRARY_TOKEN from "./constants/contracts/LibraryToken.json";
+import LIB_WRAPPER from "./constants/contracts/LIBWrapper.json";
+
 
 const SLayout = styled.div`
   position: relative;
@@ -59,19 +65,25 @@ const SBalances = styled(SLanding)`
 let web3Modal: Web3Modal;
 const App = () => {
 
-  const [provider, setProvider] = useState<any>();
-  const [fetching, setFetching] = useState<boolean>(false);
-  const [fetchingBooks, setFetchingBooks] = useState<boolean>(true);
-  const [address, setAddress] = useState<string>("");
-  const [library, setLibrary] = useState<any>(null);
+  const [web3Provider, setWeb3Provider] = useState<any>();
+  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [web3Library, setWeb3Library] = useState<any>(null);
   const [connected, setConnected] = useState<boolean>(false);
   const [chainId, setChainId] = useState<number>(1);
   const [pendingRequest, setPedningRequest] = useState<boolean>(false);
   const [result, setResult] = useState<any>();
+  
   const [libraryContract, setLibraryContract] = useState<any>(null);
+  const [libToken, setLibToken] = useState<any>(null);
+  const [libWrapperContract, setLibWrapperContract] = useState<any>(null);
+  
+  const [fetching, setFetching] = useState<boolean>(false);
+  const [fetchingBooks, setFetchingBooks] = useState<boolean>(true);
   const [info, setInfo] = useState<any>(null);
   const [transactionHash, setTransactionHash] = useState<string>("");
-  const [books, setBooks] = useState<IBook[]>([])
+  const [books, setBooks] = useState<IBook[]>([]);
+  const [LIBBalance, setLIBBalance] = useState<string>("");
+  const [contractBalance, setContractBalance] = useState<string>("")
   const [bookInfo, setBookInfo] = useState<IBook>({
     Title:"",
     Copies: 0,
@@ -96,26 +108,59 @@ const App = () => {
   }
 
   const onConnect = async () => {
-    const provider = await web3Modal.connect();
-    setProvider(provider);
-
-    const library = new Web3Provider(provider);
-
-    const network = await library.getNetwork();
-
-    const address = provider.selectedAddress ? provider.selectedAddress : provider?.accounts[0];
     
-    const libraryContract = getContract(LIBRARY_CONTRACT_ADDRESS, BOOK_LIBRARY.abi, library, address);
-    setLibrary(library);
+    const web3Provider = await web3Modal.connect();
+    const web3Library = new Web3Provider(web3Provider);
+    const network = await web3Library.getNetwork();
+    const address = web3Provider.selectedAddress ? web3Provider.selectedAddress : web3Provider?.accounts[0];
+    
+    const libraryContract = getContract(LIBRARY_CONTRACT_ADDRESS, BOOK_LIBRARY.abi, web3Library, address);
+    
+    const wrapperAddress = await libraryContract.LIBTokenWrapper();
+    const libTokenWrapper = getContract(wrapperAddress, LIB_WRAPPER.abi, web3Library, address);
+    
+    const tokenAddress = await libTokenWrapper.LIBToken();
+    console.log(tokenAddress);
+    const libraryToken = getContract(tokenAddress, LIBRARY_TOKEN.abi, web3Library, address);
+
+    const libraryTokenBalance = await libraryToken.balanceOf(address);
+    const tokenDecimals = await libraryToken.decimals();
+    
+    const contractBalance = await libTokenWrapper.provider.getBalance(libTokenWrapper.address);
+    
+    setWeb3Provider(web3Provider);
+    setWeb3Library(web3Library);
     setChainId(network.chainId);
-    setAddress(address);
+    setWalletAddress(address);
     setConnected(true);
-    setLibraryContract(libraryContract);
     
-    await subscribeToProviderEvents(provider);
+    setLibraryContract(libraryContract);
+    setLibToken(libraryToken);
+    setLibWrapperContract(libTokenWrapper);
 
+    setContractBalance(formatToken(contractBalance, tokenDecimals));
+    setLIBBalance(formatToken(libraryTokenBalance, tokenDecimals));
+
+    await subscribeToProviderEvents(web3Provider);
     await fetchBooks(libraryContract);
+
   };
+
+  const updateBalance = async () => {
+    const libraryTokenBalance = await libToken.balanceOf(walletAddress);
+    const contractBalance = await libWrapperContract.provider.getBalance(libWrapperContract.address);
+    
+    const tokenDecimals = await libToken.decimals();
+
+    setLIBBalance(formatToken(libraryTokenBalance, tokenDecimals));
+    setContractBalance(formatToken(contractBalance, tokenDecimals));
+  }
+
+  const mintToken = async (amountToMint: string, token: any, address: string) => {
+    const decimals = await token.decimals();
+    const amount = await ethers.utils.parseUnits(amountToMint, decimals);
+    await token.wrap(address, amount);
+  }
 
   const subscribeToProviderEvents = async (provider:any) => {
     if (!provider.on) {
@@ -146,16 +191,16 @@ const App = () => {
       // Metamask Lock fire an empty accounts array 
       await resetApp();
     } else {
-      setAddress(accounts[0]);
+      setWalletAddress(accounts[0]);
     }
   }
 
   const networkChanged = async (networkId: number) => {
-    const library = new Web3Provider(provider);
+    const library = new Web3Provider(web3Provider);
     const network = await library.getNetwork();
     const chainId = network.chainId;
     setChainId(chainId);
-    setLibrary(library);
+    setWeb3Library(library);
   }
 
   function getNetwork() {
@@ -175,45 +220,51 @@ const App = () => {
   };
 
   const resetApp = async () => {
-    
     await web3Modal.clearCachedProvider();
     localStorage.removeItem("WEB3_CONNECT_CACHED_PROVIDER");
     localStorage.removeItem("walletconnect");
-    await unSubscribe(provider);
-
+    await unSubscribe(web3Provider);
   };
 
   const resetState = () => {
     setFetching(false);
-    setAddress("");
-    setLibrary(null);
+    setWalletAddress("");
+    setWeb3Library(null);
     setConnected(false);
     setChainId(1);
     setPedningRequest(false);
     setResult(null);
     setLibraryContract(null);
     setInfo(null);
-  }
+  };
+
   const borrowBook = async (title: string) => {
     try {
       if (books.filter(b => b.Title === title).length) {
-        const transaction = await libraryContract.borrowBook(title);
-        setFetching(true);
-        setTransactionHash(transaction.hash)
-        const receipt = await transaction.wait();
-        if(receipt.status !== 1) {
-          alert("Transaction failed");
+        const result = await libToken.approve(libraryContract.address, BigNumber.from("10000000000000000"))
+        console.log(result);
+        if (result) {
+          const transaction = await libraryContract.borrowBook(title);
+          setFetching(true);
+          setTransactionHash(transaction.hash)
+          const receipt = await transaction.wait();
+          if(receipt.status !== 1) {
+            alert("Transaction failed");
+          }
+          showNotification(`Successfully borrowed ${title} from the library`);
+          await fetchBooks();
+          await updateBalance();
+          setFetching(false);
+        } else {
+          alert("Increasing allowance failed")
         }
-        showNotification(`Successfully borrowed ${title} from the library`);
-        setFetching(false);
-        fetchBooks();
       }
     } catch(err) {
       setFetching(false);
       setTransactionHash("");
       alert("Transaction failed");
     }
-  }
+  };
 
   const fetchBooks = async (libContract?: any) => {
     try {
@@ -234,7 +285,7 @@ const App = () => {
       setFetchingBooks(false);
       alert("Failed to load books...");
     }
-  }
+  };
 
   const submitBook = async () => {
     try {
@@ -257,12 +308,12 @@ const App = () => {
       setTransactionHash("");
       alert("Transaction failed");
     }
-  }
+  };
 
   const handleChange = (e: any) => {
     const newInfo = {...bookInfo, [e.target.name]: e.target.value}
     setBookInfo(newInfo);
-  }
+  };
 
   const returnBook = async (title: string) => {
     try {
@@ -286,6 +337,55 @@ const App = () => {
       alert("Transaction failed");
     }
 
+  };
+
+  const convertEthToLib = async () => {
+    const wrapValue = ethers.utils.parseEther("0.01")
+    const wrapTx = await libWrapperContract.wrap({value: wrapValue});
+    setFetching(true);
+    setTransactionHash(wrapTx.hash)
+    const receipt = await wrapTx.wait();
+    if(receipt.status !== 1) {
+      alert("Transaction failed");
+    }
+
+    const balance = await libToken.balanceOf(walletAddress);
+    const decimals = await libToken.decimals();
+    const formatedBalance = formatToken(balance, decimals);
+
+    showNotification("Successfully converted ETH to LIB!")
+    setLIBBalance(formatedBalance);
+    setFetching(false);
+  };
+
+  const withdrawLIB = async () => {
+    const unwrapValue = ethers.utils.parseEther("0.01");
+    const result = await libToken.approve(libraryContract.address, BigNumber.from("10000000000000000"))
+    console.log(result);
+    if (result) {
+      const unwrapTx = await libWrapperContract.unwrap(unwrapValue);
+      setFetching(true);
+      setTransactionHash(unwrapTx.hash)
+      const receipt = await unwrapTx.wait();
+      if(receipt.status !== 1) {
+        alert("Transaction failed");
+      }
+  
+      const balance = await libToken.balanceOf(walletAddress);
+      const decimals = await libToken.decimals();
+      const formatedBalance = formatToken(balance, decimals);
+  
+      showNotification("Successfully unwrapped LIB to ETH!")
+      setLIBBalance(formatedBalance);
+      setFetching(false);    
+    } else {
+      alert("Increase allowance failed")
+    }
+
+  }
+
+  const formatToken = (wei: BigNumber, decimals: number = 18) => {
+    return ethers.utils.formatUnits(wei, decimals);
   }
 
   return (
@@ -293,7 +393,7 @@ const App = () => {
         <Column maxWidth={1000} spanHeight>
           <Header
             connected={connected}
-            address={address}
+            address={walletAddress}
             chainId={chainId}
             killSession={resetApp}
           />
@@ -319,6 +419,10 @@ const App = () => {
                       bookInfo={bookInfo}
                       returnBook={returnBook}
                       fetchingBooks={fetchingBooks}
+                      tokenBalance={LIBBalance}
+                      convertEthToLib={convertEthToLib}
+                      withdrawLIB={withdrawLIB}
+                      contractBalance={contractBalance}
                     />
                   </SLanding>
               }

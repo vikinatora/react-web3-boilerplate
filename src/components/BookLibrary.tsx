@@ -3,8 +3,6 @@ import { useState } from "react";
 import IBook from "src/models/interfaces/IBook";
 import styled from "styled-components";
 import Button from "./Button";
-import Column from "./Column";
-import MiningSvg from "../assets/mining.svg";
 import Loader from "./Loader";
 
 interface IBookLibraryProps {
@@ -16,11 +14,32 @@ interface IBookLibraryProps {
   returnBook: (title: string) => void;
   bookInfo: IBook;
   fetchingBooks: boolean;
+  tokenBalance: string;
+  convertEthToLib: () => void;
+  withdrawLIB: () => void;
+  contractBalance: string;
+}
+enum JustifyContent {
+  Center = "center",
+  Start = "start",
+  End = "end",
+  FlexStart = "flex-start",
+  FlexEnd = "flex-end",
+  Left = "left",
+  Right = "right",
+  Normal = "normal",
+  SpaceBetween = "space-between",
+  SpaceAround = "space-around",
+  SpaceEvenly = "space-evenly",
+  Stretch = "strech"
 }
 
 interface ISContainerProps {
-  marginVertical?: string;
-  marginHorizontal?: string;
+  marginTop?: string;
+  marginBottom?: string;
+  marginLeft?: string;
+  marginRight?: string;
+  justifyContent?: JustifyContent
 }
 
 interface ISHeaderProps {
@@ -33,11 +52,11 @@ const BookLibrary = (props: IBookLibraryProps) => {
   const SContainer = styled.div<ISContainerProps>`
     display:flex;
     width:100%;
-    justify-content:space-evenly;
-    margin-top: ${({marginVertical}) => marginVertical ? marginVertical : 0}
-    margin-bottom: ${({marginVertical}) => marginVertical? marginVertical: 0}
-    margin-left: ${({marginHorizontal}) => marginHorizontal? marginHorizontal : 0}
-    margin-right: ${({marginHorizontal}) => marginHorizontal? marginHorizontal : 0}
+    justify-content: ${({justifyContent}) => justifyContent ? justifyContent : ""};
+    margin-top: ${({marginTop}) => marginTop ? marginTop : 0}
+    margin-bottom: ${({marginBottom}) => marginBottom? marginBottom: 0}
+    margin-left: ${({marginLeft}) => marginLeft? marginLeft : 0}
+    margin-right: ${({marginRight}) => marginRight? marginRight : 0}
   `
 
   const SHeaderDiv = styled.div<ISHeaderProps>`
@@ -54,13 +73,13 @@ const BookLibrary = (props: IBookLibraryProps) => {
   `
   return (
     <>
-      <SContainer marginVertical={"30px"}>
+      <SContainer justifyContent={JustifyContent.SpaceBetween} marginTop={"5px"}>
         <SHeaderDiv fontSize="25px">dBook Library</SHeaderDiv>
         <Button 
           width={"30%"} 
           onClick={props.fetchBooks}
         >
-          Refresh
+          Refresh books
         </Button>
         <Button 
           width={"30%"}
@@ -69,7 +88,23 @@ const BookLibrary = (props: IBookLibraryProps) => {
           {showAddBookScreen ? "View dashboard" : "Add book"}
         </Button>
       </SContainer>
-      <SContainer >
+      <SContainer justifyContent={JustifyContent.SpaceBetween} marginTop={"10px"}  marginBottom={"10px"}>
+          <SHeaderDiv>
+            User Balance: {props.tokenBalance} LIB
+          </SHeaderDiv>
+          <Button width={"30%"} onClick={props.convertEthToLib}>
+            Convert ETH to LIB 
+          </Button>
+      </SContainer>
+      <SContainer justifyContent={JustifyContent.SpaceBetween}  marginBottom={"10px"}>
+          <SHeaderDiv>
+            Contract balance: {props.contractBalance} LIB
+          </SHeaderDiv>
+          <Button width={"30%"} onClick={props.withdrawLIB}>
+            Withdraw LIB
+          </Button>
+      </SContainer>
+      <SContainer justifyContent={JustifyContent.SpaceEvenly}>
         {
           !showAddBookScreen 
           ? props.books.length && !props.fetchingBooks
@@ -92,7 +127,6 @@ const BookLibrary = (props: IBookLibraryProps) => {
                     >
                       Return
                     </Button>
-
                       :
                         <Button color="green" width={"80%"}
                           onClick={() => {props.borrowBook(book.Title)}}
@@ -116,7 +150,7 @@ const BookLibrary = (props: IBookLibraryProps) => {
             }
           </SHeaderDiv>
           :
-            <SContainer>
+            <SContainer justifyContent={JustifyContent.SpaceEvenly}>
                 <SInput 
                   key="title"
                   name="Title"
