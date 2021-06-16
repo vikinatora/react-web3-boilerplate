@@ -21,7 +21,7 @@ interface IBookLibraryProps {
   contractBalance: string;
   rentFee: string;
   signMessage: (message: string) => void
-  borrowOnBehalfOf: (name: string, receiver: string) => void
+  borrowOnBehalfOf: (name: string, signature: string, receiverAddress: string) => void
 }
 enum JustifyContent {
   Center = "center",
@@ -54,7 +54,8 @@ interface ISHeaderProps {
 
 const BookLibrary = (props: IBookLibraryProps) => {
   const [showAddBookScreen, setShowAddBookScreen] = useState<boolean>(false);
-  const [borrowerAddress, setBorrowerAddress] = useState<string>("");
+  const [receiverSignature, setReceiverSignature] = useState<string>("");
+  const [receiverAddress, setReceiverAddress] = useState<string>("");
 
   const SContainer = styled.div<ISContainerProps>`
     display:flex;
@@ -155,11 +156,17 @@ const BookLibrary = (props: IBookLibraryProps) => {
                           <SContainer alignItems={"center"} flexDirection={"column"}>
                             <SInput 
                               style={{width: "80%", marginBottom: "5px"}}
-                              onChange={(e) => setBorrowerAddress(e.target.value)}
-                              value={borrowerAddress}
-                              placeholder={"Address of receiver..."}
+                              onChange={(e) => setReceiverSignature(e.target.value)}
+                              value={receiverSignature}
+                              placeholder={"Insert signature of receiver"}
                             />
-                            <Button color="green" width={"80%"} onClick={() => props.borrowOnBehalfOf(book.Title, borrowerAddress)}>
+                             <SInput 
+                              style={{width: "80%", marginBottom: "5px"}}
+                              onChange={(e) => setReceiverAddress(e.target.value)}
+                              value={receiverAddress}
+                              placeholder={"Insert address receiver"}
+                            />
+                            <Button color="green" width={"80%"} onClick={() => props.borrowOnBehalfOf(book.Title, receiverSignature, receiverAddress)}>
                               Borrow on behalf of
                             </Button>
                           </SContainer>

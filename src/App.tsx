@@ -396,40 +396,66 @@ const App = () => {
     }
   };
 
-  // const borrowBookOnBehalfOf = async(title: string, receiver: string) => {
-  //   try {
-  //     const balance = ethers.utils.parseEther(userLibBalance);
-  //     const rentFeeBN = ethers.utils.parseEther(rentFee);
+  const borrowBookWithPermit = async (title: string) => {
+    try {
+      const balance = ethers.utils.parseEther(userLibBalance);
+      const rentFeeBN = ethers.utils.parseEther(rentFee);
+      if (balance >= rentFeeBN) {
+        if (books.filter(b => b.Title === title).length) {
+          const {v, r, s, deadline} = await onAttemptToApprove();
+          const borrowTx = await libraryContract.borrowBookWithPermit(title, rentFeeBN, deadline, v, r, s);
+          setTransactionHash(borrowTx.hash);
+          const borrowTxReceipt = await borrowTx.wait();
+          if(borrowTxReceipt.status !== 1) {
+            alert("Borrowing failed");
+          }
+          await updateBalances();
+        }
+        setFetching(false);
+        setTransactionHash("")
+      } else {
+        alert("Insufficient LIB to borrow book");
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Transaction failed");
+    }
+  };
 
-  //     if(balance >= rentFeeBN) {
-  //       if(books.filter(b => b.Title === title).length) {
-  //         const [hashedMessage, signedMessage] = await signMessageOtherUser("Approve this borrowing", receiver);
-  //         const sig = ethers.utils.splitSignature(signedMessage);
+  const borrowBookOnBehalfOf = async(title: string, receiver: string, receiverSignature: string) => {
+    try {
+      const balance = ethers.utils.parseEther(userLibBalance);
+      const rentFeeBN = ethers.utils.parseEther(rentFee);
 
-  //         const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
-  //         setFetching(true);
-  //         setTransactionHash(approveTx.hash);
-  //         const approveTxReceipt = await approveTx.wait();
+      if(balance >= rentFeeBN) {
+        if(books.filter(b => b.Title === title).length) {
+          const sig = ethers.utils.splitSignature(receiverSignature);
 
-  //         if(approveTxReceipt.status !== 1) {
-  //           alert(`Approval to spend ${rentFee} LIB failed`);
-  //         } else {
-  //           const borrowTx = await libraryContract.borrowOnBehalfOf(title, hashedMessage, sig.v, sig.r, sig.s, receiver)      
+          const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
+          setFetching(true);
+          setTransactionHash(approveTx.hash);
+          const approveTxReceipt = await approveTx.wait();
+
+          if(approveTxReceipt.status !== 1) {
+            alert(`Approval to spend ${rentFee} LIB failed`);
+          } else {
+            const borrowTx = await libraryContract.borrowOnBehalfOf(title, "", sig.v, sig.r, sig.s, receiver)      
             
-  //           setTransactionHash(borrowTx.hash);
-  //           const borrowTxReceipt = await borrowTx.wait();
-  //           if(borrowTxReceipt.status !== 1) {
-  //             alert("Borrowing failed");
-  //           }
-  //         }
-  //       }
-  //     }
-  //   } catch(err) {
-  //     setFetching(false);
-  //     setTransactionHash("");
-  //     alert("Borrowing on behalf of failed");
-  //   }
-  // }
+            setTransactionHash(borrowTx.hash);
+            const borrowTxReceipt = await borrowTx.wait();
+            if(borrowTxReceipt.status !== 1) {
+              alert("Borrowing failed");
+            }
+          }
+        }
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Borrowing on behalf of failed");
+    }
+  }
 
   const withdrawLIB = async () => {
     try {
@@ -481,11 +507,12 @@ const App = () => {
     setFetching(false);
   };
 
-  const wrapWithSignedMessage = async (hashedMessage: string, signedMessage: string, receiver: string) => {
+  const wrapWithSignature = async (message: string = "") => {
+    const [hashedMessage, signedMessage] = await signMessage(message);
     const value = "0.01";
     const wrapValue = ethers.utils.parseEther(value);
     const sig = ethers.utils.splitSignature(signedMessage);
-		const wrapTx = await libWrapperContract.wrapWithSignature(hashedMessage, sig.v, sig.r, sig.s, receiver,  {value: wrapValue})
+		const wrapTx = await libWrapperContract.wrapWithSignature(hashedMessage, sig.v, sig.r, sig.s, walletAddress,  {value: wrapValue})
     setFetching(true);
     setTransactionHash(wrapTx.hash)
 
@@ -498,45 +525,167 @@ const App = () => {
 
     await updateBalances();
     setFetching(false);
-
-  }
-
-  const wrapWithSignedMessageWrapper = async (message: string = "") => {
-    const [hashedMessage, signedMessage] = await signMessage(message);
-    await wrapWithSignedMessage(hashedMessage, signedMessage, walletAddress);
-    
   };
+
+  const borrowWithSignature = async (title: string, message: string = "") => {
+    try {
+      const balance = ethers.utils.parseEther(userLibBalance);
+      const rentFeeBN = ethers.utils.parseEther(rentFee);
+      if (balance >= rentFeeBN) {
+        if (books.filter(b => b.Title === title).length) {
+          const [hashedMessage, signedMessage] = await signMessage(message);
+          const sig = ethers.utils.splitSignature(signedMessage);
+          console.log(sig);
+          const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
+          setFetching(true);
+          setTransactionHash(approveTx.hash)
+          const approveTxReceipt = await approveTx.wait();
+          if (approveTxReceipt.status !== 1) {
+            alert(`Approval to spend ${rentFee} LIB failed`);
+          } else {
+            const borrowTx = await libraryContract.borrowBookWithSignature(title, hashedMessage, sig.v, sig.r, sig.s, walletAddress);
+            setTransactionHash(borrowTx.hash);
+            const borrowTxReceipt = await borrowTx.wait();
+            if(borrowTxReceipt.status !== 1) {
+              alert("Borrowing failed");
+            }
+            await updateBalances();
+          }
+        }
+        setFetching(false);
+        setTransactionHash("")
+      } else {
+        alert("Insufficient LIB to borrow book");
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Transaction failed");
+    }
+  };
+
+  const borrowOnBehalfOfSignature = async (title: string, signature: string, receiverAddress: string, message: string = "") => {
+    try {
+      if (receiverAddress && signature) {
+        const isValidAddress = ethers.utils.isAddress(receiverAddress);
+        if (isValidAddress) {
+          const balance = ethers.utils.parseEther(userLibBalance);
+          const rentFeeBN = ethers.utils.parseEther(rentFee);
+          if (balance >= rentFeeBN) {
+            if (books.filter(b => b.Title === title).length) {
+              const sig = ethers.utils.splitSignature(signature);
+              const hashedMessage = ethers.utils.solidityKeccak256(['string'], [message]);
+              console.log(sig);
+              const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
+              setFetching(true);
+              setTransactionHash(approveTx.hash)
+              const approveTxReceipt = await approveTx.wait();
+              if (approveTxReceipt.status !== 1) {
+                alert(`Approval to spend ${rentFee} LIB failed`);
+              } else {
+                const borrowTx = await libraryContract.borrowOnBehalfOf(title, hashedMessage, sig.v, sig.r, sig.s, receiverAddress);
+                setTransactionHash(borrowTx.hash);
+                const borrowTxReceipt = await borrowTx.wait();
+                if(borrowTxReceipt.status !== 1) {
+                  alert("Borrowing failed");
+                }
+                await updateBalances();
+              }
+            }
+            setFetching(false);
+            setTransactionHash("")
+          } else {
+            alert("Invalid receiver address");
+          }
+        } else {
+          alert("Insufficient LIB to borrow book");
+        }
+      } else {
+        alert("Empty receiver signature and/or receiver address")
+      }
+    } catch(err) {
+      setFetching(false);
+      setTransactionHash("");
+      alert("Transaction failed");
+    }
+  };
+
 
   const signMessage = async (messageToSign: string) => {
     const signer = web3Library.getSigner();
     const messageHash = ethers.utils.solidityKeccak256(['string'], [messageToSign]);
-    console.log(messageHash);
     const arrayfiedHash = ethers.utils.arrayify(messageHash);
-    console.log(arrayfiedHash);
     const signedMessage = await signer.signMessage(arrayfiedHash);
     console.log(signedMessage);
 
     return [messageHash, signedMessage];
   }
 
-  // const signMessageOtherUser = async (messageToSign: string, userAddress: string) => {
-  //   try {
-  //     const messageHash = ethers.utils.solidityKeccak256(['string'], [messageToSign]);
-  //     console.log(messageHash);
-  //     const arrayfiedHash = ethers.utils.arrayify(messageHash);
-  //     console.log(arrayfiedHash);
-
-  //     await web3.eth.personal.unlockAccount(userAddress, process.env.REACT_APP_VIKK1_PASS || "", 600)
-  //     const signedMessage = await web3.eth.sign(messageToSign, userAddress);
-  //     console.log(signedMessage);
+  const onAttemptToApprove = async () => {
+    try {
+      const nonce = (await libToken.nonces(walletAddress)); // Our Token Contract Nonces
+      const deadline = + new Date() + 60 * 60; // Permit with deadline which the permit is valid
+      const wrapValue = ethers.utils.parseEther("0.1"); // Value to approve for the spender to use
   
-  //     return [messageHash, signedMessage];
-
-  //   } catch(err) {
-  //     console.log(err);
-  //     return [];
-  //   }
-  // }
+      const EIP712Domain = [ // array of objects -> properties from the contract and the types of them ircwithPermit
+        { name: 'name', type: 'string' },
+        { name: 'version', type: 'string' },
+        { name: 'verifyingContract', type: 'address' }
+      ];
+  
+      const domain = {
+        name: await libToken.name(),
+        version: '1',
+        verifyingContract: libToken.address
+      };
+  
+      const Permit = [ // array of objects -> properties from erc20withpermit
+        { name: 'owner', type: 'address' },
+        { name: 'spender', type: 'address' },
+        { name: 'value', type: 'uint256' },
+        { name: 'nonce', type: 'uint256' },
+        { name: 'deadline', type: 'uint256' }
+      ];
+  
+      const message = {
+        owner: walletAddress,
+        spender: LIBRARY_CONTRACT_ADDRESS,
+        value: wrapValue.toString(),
+        nonce: nonce.toHexString(),
+        deadline
+      };
+  
+      const data = JSON.stringify({
+        types: {
+            EIP712Domain,
+            Permit
+        },
+        domain,
+        primaryType: 'Permit',
+        message
+      })
+  
+      const signatureLike = await web3Library.send('eth_signTypedData_v4', [walletAddress, data]);
+      const signature = await ethers.utils.splitSignature(signatureLike)
+  
+      const preparedSignature = {
+        v: signature.v,
+        r: signature.r,
+        s: signature.s,
+        deadline
+      }
+      return preparedSignature;
+    } catch(err) {
+      console.log(err);
+      alert("Creating signature failed");
+      return {
+        v: "",
+        r: "",
+        s: "",
+        deadline: ""
+      };
+    }
+  }
 
 
 
@@ -568,7 +717,9 @@ const App = () => {
                   <SLanding>
                     <BookLibrary
                       books={books}
-                      borrowBook={borrowBook}
+                      // borrowBook={borrowBook}
+                      // borrowBook={borrowBookWithPermit}
+                      borrowBook={borrowWithSignature}
                       fetchBooks={fetchBooks}
                       submitBook={submitBook}
                       handleChange={handleChange}
@@ -576,12 +727,12 @@ const App = () => {
                       returnBook={returnBook}
                       fetchingBooks={fetchingBooks}
                       tokenBalance={userLibBalance}
-                      convertEthToLib={wrapWithSignedMessageWrapper}
+                      convertEthToLib={wrapWithSignature}
                       withdrawLIB={withdrawLIB}
                       contractBalance={contractBalance}
                       rentFee={rentFee}
                       signMessage={signMessage}
-                      borrowOnBehalfOf={borrowBookOnBehalfOf}
+                      borrowOnBehalfOf={borrowOnBehalfOfSignature}
                     />
                   </SLanding>
               }
