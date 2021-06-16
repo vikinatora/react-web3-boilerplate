@@ -1,3 +1,4 @@
+import { title } from "process";
 import * as React from "react";
 import { useState } from "react";
 import IBook from "src/models/interfaces/IBook";
@@ -19,6 +20,8 @@ interface IBookLibraryProps {
   withdrawLIB: () => void;
   contractBalance: string;
   rentFee: string;
+  signMessage: (message: string) => void
+  borrowOnBehalfOf: (name: string, receiver: string) => void
 }
 enum JustifyContent {
   Center = "center",
@@ -40,7 +43,9 @@ interface ISContainerProps {
   marginBottom?: string;
   marginLeft?: string;
   marginRight?: string;
+  flexDirection?: string;
   justifyContent?: JustifyContent
+  alignItems?: string;
 }
 
 interface ISHeaderProps {
@@ -49,15 +54,18 @@ interface ISHeaderProps {
 
 const BookLibrary = (props: IBookLibraryProps) => {
   const [showAddBookScreen, setShowAddBookScreen] = useState<boolean>(false);
-  
+  const [borrowerAddress, setBorrowerAddress] = useState<string>("");
+
   const SContainer = styled.div<ISContainerProps>`
     display:flex;
     width:100%;
-    justify-content: ${({justifyContent}) => justifyContent ? justifyContent : ""};
+    flex-direction: ${({flexDirection}) => flexDirection ? flexDirection : "row"};
+    justify-content: ${({justifyContent}) => justifyContent ? justifyContent : "normal"};
     margin-top: ${({marginTop}) => marginTop ? marginTop : 0}
     margin-bottom: ${({marginBottom}) => marginBottom? marginBottom: 0}
     margin-left: ${({marginLeft}) => marginLeft? marginLeft : 0}
     margin-right: ${({marginRight}) => marginRight? marginRight : 0}
+    align-items: ${({alignItems}) => alignItems ? alignItems : "normal"}
   `
 
   const SHeaderDiv = styled.div<ISHeaderProps>`
@@ -126,20 +134,38 @@ const BookLibrary = (props: IBookLibraryProps) => {
                     <td>{book.Title}</td>
                     <td>{book.Copies}</td>
                     <td>
-                      {book.IsBorrowed
-                      ?
-                      <Button width={"80%"}
-                      onClick={() => {props.returnBook(book.Title)}}
-                    >
-                      Return
-                    </Button>
-                      :
-                        <Button color="green" width={"80%"}
-                          onClick={() => {props.borrowBook(book.Title)}}
-                        >
-                          Borrow
-                        </Button>
-                      }
+                      <SContainer flexDirection={"column"} justifyContent={JustifyContent.Center}>
+                        {book.IsBorrowed
+                        ?
+                        <Button width={"80%"}
+                        onClick={() => {props.returnBook(book.Title)}}
+                      >
+                        Return
+                      </Button>
+                        :
+                          <>
+                          <div style={{marginBottom: "15px" }}>
+                            <Button color="green" width={"80%"}
+                              onClick={() => {props.borrowBook(book.Title)}}
+                            >
+                              Borrow for yourself
+                            </Button>
+
+                          </div>
+                          <SContainer alignItems={"center"} flexDirection={"column"}>
+                            <SInput 
+                              style={{width: "80%", marginBottom: "5px"}}
+                              onChange={(e) => setBorrowerAddress(e.target.value)}
+                              value={borrowerAddress}
+                              placeholder={"Address of receiver..."}
+                            />
+                            <Button color="green" width={"80%"} onClick={() => props.borrowOnBehalfOf(book.Title, borrowerAddress)}>
+                              Borrow on behalf of
+                            </Button>
+                          </SContainer>
+                          </>
+                        }
+                      </SContainer>
                     </td>
                   </tr>
                 )))}
