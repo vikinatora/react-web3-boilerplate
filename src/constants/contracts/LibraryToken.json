@@ -643,15 +643,15 @@
     "absolutePath": "/Users/viktortodorov/Desktop/BookLibrary/contracts/LibraryToken.sol",
     "exportedSymbols": {
       "LibraryToken": [
-        700
+        735
       ]
     },
-    "id": 701,
+    "id": 736,
     "license": "UNLICENSED",
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 687,
+        "id": 722,
         "literals": [
           "solidity",
           "^",
@@ -662,7 +662,7 @@
         "src": "40:23:3"
       },
       {
-        "id": 688,
+        "id": 723,
         "literals": [
           "experimental",
           "ABIEncoderV2"
@@ -673,10 +673,10 @@
       {
         "absolutePath": "@openzeppelin/contracts/presets/ERC20PresetMinterPauser.sol",
         "file": "@openzeppelin/contracts/presets/ERC20PresetMinterPauser.sol",
-        "id": 689,
+        "id": 724,
         "nodeType": "ImportDirective",
-        "scope": 701,
-        "sourceUnit": 1585,
+        "scope": 736,
+        "sourceUnit": 1620,
         "src": "99:69:3",
         "symbolAliases": [],
         "unitAlias": ""
@@ -688,58 +688,58 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 690,
+              "id": 725,
               "name": "ERC20PresetMinterPauser",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 1584,
+              "referencedDeclaration": 1619,
               "src": "195:23:3",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_ERC20PresetMinterPauser_$1584",
+                "typeIdentifier": "t_contract$_ERC20PresetMinterPauser_$1619",
                 "typeString": "contract ERC20PresetMinterPauser"
               }
             },
-            "id": 691,
+            "id": 726,
             "nodeType": "InheritanceSpecifier",
             "src": "195:23:3"
           }
         ],
         "contractDependencies": [
-          983,
-          1584,
-          2087,
-          2146,
-          2183,
-          2261,
-          2580,
-          3164
+          1018,
+          1619,
+          2122,
+          2181,
+          2218,
+          2296,
+          2615,
+          3199
         ],
         "contractKind": "contract",
         "documentation": null,
         "fullyImplemented": true,
-        "id": 700,
+        "id": 735,
         "linearizedBaseContracts": [
-          700,
-          1584,
-          2183,
-          3164,
-          2146,
-          2087,
-          2261,
-          983,
-          2580
+          735,
+          1619,
+          2218,
+          3199,
+          2181,
+          2122,
+          2296,
+          1018,
+          2615
         ],
         "name": "LibraryToken",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "body": {
-              "id": 698,
+              "id": 733,
               "nodeType": "Block",
               "src": "284:5:3",
               "statements": []
             },
             "documentation": null,
-            "id": 699,
+            "id": 734,
             "implemented": true,
             "kind": "constructor",
             "modifiers": [
@@ -748,7 +748,7 @@
                   {
                     "argumentTypes": null,
                     "hexValue": "4c696272617279546f6b656e",
-                    "id": 694,
+                    "id": 729,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": true,
@@ -766,7 +766,7 @@
                   {
                     "argumentTypes": null,
                     "hexValue": "4c4942",
-                    "id": 695,
+                    "id": 730,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": true,
@@ -782,17 +782,17 @@
                     "value": "LIB"
                   }
                 ],
-                "id": 696,
+                "id": 731,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 693,
+                  "id": 728,
                   "name": "ERC20PresetMinterPauser",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 1584,
+                  "referencedDeclaration": 1619,
                   "src": "237:23:3",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_type$_t_contract$_ERC20PresetMinterPauser_$1584_$",
+                    "typeIdentifier": "t_type$_t_contract$_ERC20PresetMinterPauser_$1619_$",
                     "typeString": "type(contract ERC20PresetMinterPauser)"
                   }
                 },
@@ -804,25 +804,25 @@
             "nodeType": "FunctionDefinition",
             "overrides": null,
             "parameters": {
-              "id": 692,
+              "id": 727,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "234:2:3"
             },
             "returnParameters": {
-              "id": 697,
+              "id": 732,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "284:0:3"
             },
-            "scope": 700,
+            "scope": 735,
             "src": "223:66:3",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "public"
           }
         ],
-        "scope": 701,
+        "scope": 736,
         "src": "170:121:3"
       }
     ],
@@ -832,15 +832,15 @@
     "absolutePath": "/Users/viktortodorov/Desktop/BookLibrary/contracts/LibraryToken.sol",
     "exportedSymbols": {
       "LibraryToken": [
-        700
+        735
       ]
     },
-    "id": 701,
+    "id": 736,
     "license": "UNLICENSED",
     "nodeType": "SourceUnit",
     "nodes": [
       {
-        "id": 687,
+        "id": 722,
         "literals": [
           "solidity",
           "^",
@@ -851,7 +851,7 @@
         "src": "40:23:3"
       },
       {
-        "id": 688,
+        "id": 723,
         "literals": [
           "experimental",
           "ABIEncoderV2"
@@ -862,10 +862,10 @@
       {
         "absolutePath": "@openzeppelin/contracts/presets/ERC20PresetMinterPauser.sol",
         "file": "@openzeppelin/contracts/presets/ERC20PresetMinterPauser.sol",
-        "id": 689,
+        "id": 724,
         "nodeType": "ImportDirective",
-        "scope": 701,
-        "sourceUnit": 1585,
+        "scope": 736,
+        "sourceUnit": 1620,
         "src": "99:69:3",
         "symbolAliases": [],
         "unitAlias": ""
@@ -877,58 +877,58 @@
             "arguments": null,
             "baseName": {
               "contractScope": null,
-              "id": 690,
+              "id": 725,
               "name": "ERC20PresetMinterPauser",
               "nodeType": "UserDefinedTypeName",
-              "referencedDeclaration": 1584,
+              "referencedDeclaration": 1619,
               "src": "195:23:3",
               "typeDescriptions": {
-                "typeIdentifier": "t_contract$_ERC20PresetMinterPauser_$1584",
+                "typeIdentifier": "t_contract$_ERC20PresetMinterPauser_$1619",
                 "typeString": "contract ERC20PresetMinterPauser"
               }
             },
-            "id": 691,
+            "id": 726,
             "nodeType": "InheritanceSpecifier",
             "src": "195:23:3"
           }
         ],
         "contractDependencies": [
-          983,
-          1584,
-          2087,
-          2146,
-          2183,
-          2261,
-          2580,
-          3164
+          1018,
+          1619,
+          2122,
+          2181,
+          2218,
+          2296,
+          2615,
+          3199
         ],
         "contractKind": "contract",
         "documentation": null,
         "fullyImplemented": true,
-        "id": 700,
+        "id": 735,
         "linearizedBaseContracts": [
-          700,
-          1584,
-          2183,
-          3164,
-          2146,
-          2087,
-          2261,
-          983,
-          2580
+          735,
+          1619,
+          2218,
+          3199,
+          2181,
+          2122,
+          2296,
+          1018,
+          2615
         ],
         "name": "LibraryToken",
         "nodeType": "ContractDefinition",
         "nodes": [
           {
             "body": {
-              "id": 698,
+              "id": 733,
               "nodeType": "Block",
               "src": "284:5:3",
               "statements": []
             },
             "documentation": null,
-            "id": 699,
+            "id": 734,
             "implemented": true,
             "kind": "constructor",
             "modifiers": [
@@ -937,7 +937,7 @@
                   {
                     "argumentTypes": null,
                     "hexValue": "4c696272617279546f6b656e",
-                    "id": 694,
+                    "id": 729,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": true,
@@ -955,7 +955,7 @@
                   {
                     "argumentTypes": null,
                     "hexValue": "4c4942",
-                    "id": 695,
+                    "id": 730,
                     "isConstant": false,
                     "isLValue": false,
                     "isPure": true,
@@ -971,17 +971,17 @@
                     "value": "LIB"
                   }
                 ],
-                "id": 696,
+                "id": 731,
                 "modifierName": {
                   "argumentTypes": null,
-                  "id": 693,
+                  "id": 728,
                   "name": "ERC20PresetMinterPauser",
                   "nodeType": "Identifier",
                   "overloadedDeclarations": [],
-                  "referencedDeclaration": 1584,
+                  "referencedDeclaration": 1619,
                   "src": "237:23:3",
                   "typeDescriptions": {
-                    "typeIdentifier": "t_type$_t_contract$_ERC20PresetMinterPauser_$1584_$",
+                    "typeIdentifier": "t_type$_t_contract$_ERC20PresetMinterPauser_$1619_$",
                     "typeString": "type(contract ERC20PresetMinterPauser)"
                   }
                 },
@@ -993,25 +993,25 @@
             "nodeType": "FunctionDefinition",
             "overrides": null,
             "parameters": {
-              "id": 692,
+              "id": 727,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "234:2:3"
             },
             "returnParameters": {
-              "id": 697,
+              "id": 732,
               "nodeType": "ParameterList",
               "parameters": [],
               "src": "284:0:3"
             },
-            "scope": 700,
+            "scope": 735,
             "src": "223:66:3",
             "stateMutability": "nonpayable",
             "virtual": false,
             "visibility": "public"
           }
         ],
-        "scope": 701,
+        "scope": 736,
         "src": "170:121:3"
       }
     ],
@@ -1025,5 +1025,5 @@
   },
   "networks": {},
   "schemaVersion": "2.3.5",
-  "updatedAt": "2021-06-15T08:57:04.834Z"
+  "updatedAt": "2021-06-15T11:53:52.931Z"
 }

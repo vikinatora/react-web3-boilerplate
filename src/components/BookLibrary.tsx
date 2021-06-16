@@ -18,6 +18,7 @@ interface IBookLibraryProps {
   convertEthToLib: () => void;
   withdrawLIB: () => void;
   contractBalance: string;
+  rentFee: string;
 }
 enum JustifyContent {
   Center = "center",
@@ -88,7 +89,12 @@ const BookLibrary = (props: IBookLibraryProps) => {
           {showAddBookScreen ? "View dashboard" : "Add book"}
         </Button>
       </SContainer>
-      <SContainer justifyContent={JustifyContent.SpaceBetween} marginTop={"10px"}  marginBottom={"10px"}>
+      <SContainer marginTop={"10px"}  marginBottom={"10px"}>
+        <SHeaderDiv>
+          Rent fee: {props.rentFee} LIB
+        </SHeaderDiv>
+      </SContainer>
+      <SContainer justifyContent={JustifyContent.SpaceBetween} marginBottom={"10px"}>
           <SHeaderDiv>
             User Balance: {props.tokenBalance} LIB
           </SHeaderDiv>
