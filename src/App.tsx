@@ -99,7 +99,7 @@ const App = () => {
     }
 
   }, []);
-  
+
   function createWeb3Modal() {
     web3Modal = new Web3Modal({
       network: getNetwork(),
@@ -271,6 +271,8 @@ const App = () => {
     localStorage.removeItem("WEB3_CONNECT_CACHED_PROVIDER");
     localStorage.removeItem("walletconnect");
     await unSubscribe(web3Provider);
+    await libraryContract.removeAllListeners();
+    await libToken.removeAllListeners();
   };
 
   const resetState = () => {
@@ -313,11 +315,11 @@ const App = () => {
         setFetching(true);
         setTransactionHash(transaction.hash)
         const receipt = await transaction.wait();
+
         if(receipt.status !== 1) {
           alert("Transaction failed");
         }
-        // showNotification(`Successfully added "${bookInfo.Title}" to the library!`)
-        // fetchBooks();
+
         setFetching(false);
       } else {
         alert("Invalid title or copies")
@@ -341,11 +343,11 @@ const App = () => {
         setFetching(true);
         setTransactionHash(transaction.hash)
         const receipt = await transaction.wait();
+
         if(receipt.status !== 1) {
           alert("Transaction failed");
         }
-        // showNotification("Susccessfully returned book!")
-        // fetchBooks();
+
         setFetching(false);
       } else {
         alert("Books doesn't exist or isn't available");
@@ -412,7 +414,7 @@ const App = () => {
   };
 
   const withdrawLIB = async () => {
-    const unwrapValue = ethers.utils.parseEther("0.005");
+    const unwrapValue = ethers.utils.parseEther("0.01");
     const approveTx = await libToken.approve(libWrapperContract.address, unwrapValue)
     setFetching(true);
     setTransactionHash(approveTx.hash)
