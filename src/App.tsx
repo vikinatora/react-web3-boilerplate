@@ -88,7 +88,8 @@ const App = () => {
   const [transactionHash, setTransactionHash] = useState<string>("");
   const [books, setBooks] = useState<IBook[]>([]);
   const [userLibBalance, setUserLibBalance] = useState<string>("");
-  const [contractBalance, setContractBalance] = useState<string>("");
+  const [contractLibBalance, setContractLibBalance] = useState<string>("");
+  const [contractEthBalance, setContractEthBalance] = useState<string>("");
   const [rentFee, setRentFee] = useState<string>("");
   const [newBookInfo, setNewBookInfo] = useState<IBook>({
     Title:"",
@@ -137,8 +138,9 @@ const App = () => {
           const libraryTokenBalance = await libraryToken.balanceOf(address);
           const tokenDecimals = await libraryToken.decimals();
           
-          const contractBalance = await libraryToken.balanceOf(LIBRARY_CONTRACT_ADDRESS);
-      
+          const contractLibBalance = await libraryToken.balanceOf(LIBRARY_CONTRACT_ADDRESS);
+          const contractETHBalance = await libraryContract.provider.getBalance(LIBRARY_CONTRACT_ADDRESS);
+
           const rentFee = await libraryContract.rentFee();
       
           setWeb3Provider(web3Provider);
@@ -151,7 +153,8 @@ const App = () => {
           setTokenContract(libraryToken);
           setLibWrapperContract(libTokenWrapper);
       
-          setContractBalance(formatToken(contractBalance, tokenDecimals));
+          setContractLibBalance(formatToken(contractLibBalance, tokenDecimals));
+          setContractEthBalance(formatToken(contractETHBalance, 18));
           setUserLibBalance(formatToken(libraryTokenBalance, tokenDecimals));
           setRentFee(formatToken(rentFee, 18));
       
@@ -195,14 +198,17 @@ const App = () => {
   const updateBalances = async () => {
     if(tokenContract && userAddress) {
       const userLibBalance = await tokenContract.balanceOf(userAddress);
-      const contractBalance = await tokenContract.balanceOf(LIBRARY_CONTRACT_ADDRESS);
+      const contractLibBalance = await tokenContract.balanceOf(LIBRARY_CONTRACT_ADDRESS);
       const tokenDecimals = await tokenContract.decimals();
+      const contractETHBalance = await libraryContract.provider.getBalance(LIBRARY_CONTRACT_ADDRESS);
 
-      console.log(`Library Contract balance: ${formatToken(contractBalance, tokenDecimals)}`);
+      console.log(`Library Contract LIB balance: ${formatToken(contractLibBalance, tokenDecimals)}`);
+      console.log(`Library Contract ETH balance: ${formatToken(contractETHBalance, tokenDecimals)}`);
       console.log(`User balance: ${formatToken(userLibBalance, tokenDecimals)}`);
 
       setUserLibBalance(formatToken(userLibBalance, tokenDecimals));
-      setContractBalance(formatToken(contractBalance, tokenDecimals));
+      setContractLibBalance(formatToken(contractLibBalance, tokenDecimals));
+      setContractEthBalance(formatToken(contractETHBalance, 18));
     }
   }
 
@@ -450,7 +456,7 @@ const App = () => {
       if (approveTxReceipt.status !== 1) {
         alert("Increase allowance failed");
       } else {
-        const unwrapTx = await libWrapperContract.unwrap(unwrapValue);
+        const unwrapTx = await libWrapperContract.unwrapToken();
         setTransactionHash(unwrapTx.hash)
         const unwrapTxReceipt = await unwrapTx.wait();
         if(unwrapTxReceipt.status !== 1) {
@@ -458,7 +464,6 @@ const App = () => {
         } else {
           const balance = await tokenContract.balanceOf(userAddress);
           const decimals = await tokenContract.decimals();
-          const formatedBalance = formatToken(balance, decimals);
       
           showNotification("Successfully unwrapped LIB to ETH!")
           updateBalances();
@@ -474,12 +479,38 @@ const App = () => {
   const withdrawRent = async () => {
     try {
       const unwrapValue = ethers.utils.parseEther("0.01");
-      const ctBalance = ethers.utils.parseEther(contractBalance);
+      const ctBalance = ethers.utils.parseEther(contractLibBalance);
       if (ctBalance >= unwrapValue) {
         const withdrawTx = await libraryContract.withdrawLibTokens();
         setFetching(true);
         setTransactionHash(withdrawTx.hash);
-        const withdrawTxreceipt = withdrawTx.wait();
+        const withdrawTxreceipt = await withdrawTx.wait();
+        if (withdrawTxreceipt.status !== 1) {
+          alert("Withraw transaction failed");
+        } else {
+          updateBalances();
+        }
+      } else {
+        alert("Insufficient contract balance");
+      }
+      setFetching(false);
+      setTransactionHash("");
+    } catch(err) {
+      console.log(err);
+      alert("Withdrawing funds failed");
+      setFetching(false);
+      setTransactionHash("");
+    }
+  }
+
+  const withdrawRentToOwnerAccount = async () => {
+    try {
+      const unwrapValue = ethers.utils.parseEther(contractEthBalance);
+      if (unwrapValue.toString() >= "0.1") {
+        const withdrawTx = await libraryContract.withdrawETH();
+        setFetching(true);
+        setTransactionHash(withdrawTx.hash);
+        const withdrawTxreceipt = await withdrawTx.wait();
         if (withdrawTxreceipt.status !== 1) {
           alert("Withraw transaction failed");
         } else {
@@ -770,10 +801,12 @@ const App = () => {
                       tokenBalance={userLibBalance}
                       convertEthToLib={wrapWithSignature}
                       withdrawLIB={withdrawLIB}
-                      contractBalance={contractBalance}
+                      contractLibBalance={contractLibBalance}
+                      contractEthBalance={contractEthBalance}
                       rentFee={rentFee}
                       signMessage={signMessage}
                       withdrawRent={withdrawRent}
+                      withdrawRentToOwnerAccount={withdrawRentToOwnerAccount}
                     />
                   </SLanding>
               }

@@ -18,11 +18,13 @@ interface IBookLibraryProps {
   tokenBalance: string;
   convertEthToLib: () => void;
   withdrawLIB: () => void;
-  contractBalance: string;
+  contractLibBalance: string;
+  contractEthBalance: string;
   rentFee: string;
   signMessage: (message: string) => void;
   borrowOnBehalfOf: (name: string, signature: string, receiverAddress: string) => void;
-  withdrawRent: () => void
+  withdrawRent: () => void;
+  withdrawRentToOwnerAccount: () => void
 }
 enum JustifyContent {
   Center = "center",
@@ -119,10 +121,18 @@ const BookLibrary = (props: IBookLibraryProps) => {
       </SContainer>
       <SContainer justifyContent={JustifyContent.SpaceBetween}  marginBottom={"10px"}>
           <SHeaderDiv>
-            Contract balance: {props.contractBalance} LIB
+            Contract balance: {props.contractLibBalance} LIB
           </SHeaderDiv>
           <Button onClick={props.withdrawRent}>
             Withdraw from accumulated rent
+          </Button>
+      </SContainer>
+      <SContainer justifyContent={JustifyContent.SpaceBetween}  marginBottom={"10px"}>
+          <SHeaderDiv>
+            Contract balance: {props.contractEthBalance} ETH
+          </SHeaderDiv>
+          <Button onClick={props.withdrawRentToOwnerAccount}>
+            Withdraw ETH to owner account
           </Button>
       </SContainer>
       <SContainer justifyContent={JustifyContent.SpaceEvenly}>
