@@ -20,8 +20,9 @@ interface IBookLibraryProps {
   withdrawLIB: () => void;
   contractBalance: string;
   rentFee: string;
-  signMessage: (message: string) => void
-  borrowOnBehalfOf: (name: string, signature: string, receiverAddress: string) => void
+  signMessage: (message: string) => void;
+  borrowOnBehalfOf: (name: string, signature: string, receiverAddress: string) => void;
+  withdrawRent: () => void
 }
 enum JustifyContent {
   Center = "center",
@@ -104,19 +105,24 @@ const BookLibrary = (props: IBookLibraryProps) => {
         </SHeaderDiv>
       </SContainer>
       <SContainer justifyContent={JustifyContent.SpaceBetween} marginBottom={"10px"}>
-          <SHeaderDiv>
-            User Balance: {props.tokenBalance} LIB
-          </SHeaderDiv>
-          <Button width={"30%"} onClick={props.convertEthToLib}>
-            Convert ETH to LIB 
-          </Button>
+          <SContainer justifyContent={JustifyContent.SpaceBetween}>
+            <SHeaderDiv>
+              User Balance: {props.tokenBalance} LIB
+            </SHeaderDiv>
+            <Button width={"30%"} onClick={props.convertEthToLib}>
+              Convert ETH to LIB 
+            </Button>
+            <Button width={"30%"} onClick={props.withdrawLIB}>
+              Convert LIB to ETH
+            </Button>
+          </SContainer>
       </SContainer>
       <SContainer justifyContent={JustifyContent.SpaceBetween}  marginBottom={"10px"}>
           <SHeaderDiv>
             Contract balance: {props.contractBalance} LIB
           </SHeaderDiv>
-          <Button width={"30%"} onClick={props.withdrawLIB}>
-            Withdraw LIB
+          <Button onClick={props.withdrawRent}>
+            Withdraw from accumulated rent
           </Button>
       </SContainer>
       <SContainer justifyContent={JustifyContent.SpaceEvenly}>
@@ -134,8 +140,8 @@ const BookLibrary = (props: IBookLibraryProps) => {
                   <tr key={idx}>
                     <td>{book.Title}</td>
                     <td>{book.Copies}</td>
-                    <td>
-                      <SContainer flexDirection={"column"} justifyContent={JustifyContent.Center}>
+                    <td style={{alignItems: "center"}}>
+                      <SContainer alignItems={"center"} flexDirection={"column"} justifyContent={JustifyContent.Center}>
                         {book.IsBorrowed
                         ?
                         <Button width={"80%"}
@@ -144,33 +150,28 @@ const BookLibrary = (props: IBookLibraryProps) => {
                         Return
                       </Button>
                         :
-                          <>
-                          <div style={{marginBottom: "15px" }}>
-                            <Button color="green" width={"80%"}
-                              onClick={() => {props.borrowBook(book.Title)}}
-                            >
-                              Borrow for yourself
-                            </Button>
-
-                          </div>
-                          <SContainer alignItems={"center"} flexDirection={"column"}>
-                            <SInput 
-                              style={{width: "80%", marginBottom: "5px"}}
-                              onChange={(e) => setReceiverSignature(e.target.value)}
-                              value={receiverSignature}
-                              placeholder={"Insert signature of receiver"}
-                            />
-                             <SInput 
-                              style={{width: "80%", marginBottom: "5px"}}
-                              onChange={(e) => setReceiverAddress(e.target.value)}
-                              value={receiverAddress}
-                              placeholder={"Insert address receiver"}
-                            />
-                            <Button color="green" width={"80%"} onClick={() => props.borrowOnBehalfOf(book.Title, receiverSignature, receiverAddress)}>
-                              Borrow on behalf of
-                            </Button>
-                          </SContainer>
-                          </>
+                        <SContainer alignItems={"center"} flexDirection={"column"}>
+                          <Button color="green" width={"80%"}
+                            onClick={() => {props.borrowBook(book.Title)}}
+                          >
+                            Borrow for yourself
+                          </Button>
+                          <SInput 
+                            style={{width: "80%", marginBottom: "5px"}}
+                            onChange={(e) => setReceiverSignature(e.target.value)}
+                            value={receiverSignature}
+                            placeholder={"Insert signature of receiver"}
+                          />
+                          <SInput 
+                            style={{width: "80%", marginBottom: "5px"}}
+                            onChange={(e) => setReceiverAddress(e.target.value)}
+                            value={receiverAddress}
+                            placeholder={"Insert address receiver"}
+                          />
+                          <Button color="green" width={"80%"} onClick={() => props.borrowOnBehalfOf(book.Title, receiverSignature, receiverAddress)}>
+                            Borrow on behalf of
+                          </Button>
+                        </SContainer>
                         }
                       </SContainer>
                     </td>

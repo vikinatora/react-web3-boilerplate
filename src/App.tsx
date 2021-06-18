@@ -1,10 +1,10 @@
 import * as React from 'react';
+import styled from 'styled-components';
 import { useEffect, useState } from "react";
 import {BigNumber, BigNumberish, ethers} from "ethers";
-import styled from 'styled-components';
+import { ecrecover, toBuffer, pubToAddress, bufferToHex } from 'ethereumjs-util';
 
 import Web3Modal from 'web3modal';
-import Web3 from 'web3';
 // @ts-ignore
 import WalletConnectProvider from '@walletconnect/web3-provider';
 import Column from './components/Column';
@@ -26,7 +26,6 @@ import {
 import BOOK_LIBRARY from "./constants/contracts/BookLibrary.json";
 import LIBRARY_TOKEN from "./constants/contracts/LibraryToken.json";
 import LIB_WRAPPER from "./constants/contracts/LIBWrapper.json";
-
 
 const SLayout = styled.div`
   position: relative;
@@ -64,11 +63,15 @@ const SBalances = styled(SLanding)`
 `;
 
 let web3Modal: Web3Modal;
-const web3 = new Web3();
-const App = () => {
 
+const abiCoder = new ethers.utils.AbiCoder();
+const keccak256 = ethers.utils.solidityKeccak256;
+
+// Difference between token.balanceOf and token.provider.balanceOf ?
+
+const App = () => {
   const [web3Provider, setWeb3Provider] = useState<any>();
-  const [walletAddress, setWalletAddress] = useState<string>("");
+  const [userAddress, setUserAddress] = useState<string>("");
   const [web3Library, setWeb3Library] = useState<any>(null);
   const [connected, setConnected] = useState<boolean>(false);
   const [chainId, setChainId] = useState<number>(1);
@@ -76,7 +79,7 @@ const App = () => {
   const [result, setResult] = useState<any>();
   
   const [libraryContract, setLibraryContract] = useState<any>(null);
-  const [libToken, setLibToken] = useState<any>(null);
+  const [tokenContract, setTokenContract] = useState<any>(null);
   const [libWrapperContract, setLibWrapperContract] = useState<any>(null);
   
   const [fetching, setFetching] = useState<boolean>(false);
@@ -87,7 +90,7 @@ const App = () => {
   const [userLibBalance, setUserLibBalance] = useState<string>("");
   const [contractBalance, setContractBalance] = useState<string>("");
   const [rentFee, setRentFee] = useState<string>("");
-  const [bookInfo, setBookInfo] = useState<IBook>({
+  const [newBookInfo, setNewBookInfo] = useState<IBook>({
     Title:"",
     Copies: 0,
     IsBorrowed: false
@@ -115,37 +118,37 @@ const App = () => {
     const web3Library = new Web3Provider(web3Provider);
     const network = await web3Library.getNetwork();
     const address = web3Provider.selectedAddress ? web3Provider.selectedAddress : web3Provider?.accounts[0];
-    console.log(web3Provider?.accounts);
     let isValidAddress = ethers.utils.isAddress(LIBRARY_CONTRACT_ADDRESS);
     
     if (isValidAddress) {
       const libraryContract = getContract(LIBRARY_CONTRACT_ADDRESS, BOOK_LIBRARY.abi, web3Library, address);
       const wrapperAddress = await libraryContract.LIBTokenWrapper();
+      console.log(wrapperAddress)
       isValidAddress = ethers.utils.isAddress(wrapperAddress);
 
       if(isValidAddress) {
         const libTokenWrapper = getContract(wrapperAddress, LIB_WRAPPER.abi, web3Library, address);
         const tokenAddress = await libraryContract.LIBToken();
+        console.log(tokenAddress)
         isValidAddress = ethers.utils.isAddress(tokenAddress);
-        console.log(`Token address: ${tokenAddress}`)
-        if(isValidAddress) {
+        if(isValidAddress) {  
           const libraryToken = getContract(tokenAddress, LIBRARY_TOKEN.abi, web3Library, address);
       
           const libraryTokenBalance = await libraryToken.balanceOf(address);
           const tokenDecimals = await libraryToken.decimals();
           
-          const contractBalance = await libTokenWrapper.provider.getBalance(libTokenWrapper.address);
+          const contractBalance = await libraryToken.balanceOf(LIBRARY_CONTRACT_ADDRESS);
       
           const rentFee = await libraryContract.rentFee();
       
           setWeb3Provider(web3Provider);
           setWeb3Library(web3Library);
           setChainId(network.chainId);
-          setWalletAddress(address);
+          setUserAddress(ethers.utils.getAddress(address));
           setConnected(true);
           
           setLibraryContract(libraryContract);
-          setLibToken(libraryToken);
+          setTokenContract(libraryToken);
           setLibWrapperContract(libTokenWrapper);
       
           setContractBalance(formatToken(contractBalance, tokenDecimals));
@@ -175,7 +178,6 @@ const App = () => {
     libraryContract.on("LogBookBorrowed", async (bookName: string, borrower: string, tx: any) => {
       showNotification(`"${bookName}" has just been borrowed by ${borrower}`);
       await fetchBooks(libraryContract);
-      // await updateContractBalance();
     });
 
     libraryContract.on("LogBookReturned", async (bookName: string, returner: string, tx: any) => {
@@ -190,15 +192,16 @@ const App = () => {
     })
   }
 
-
   const updateBalances = async () => {
-    if(libToken && libWrapperContract && walletAddress) {
-      const libraryTokenBalance = await libToken.balanceOf(walletAddress);
-      const contractBalance = await libWrapperContract.provider.getBalance(libWrapperContract.address);
-      
-      const tokenDecimals = await libToken.decimals();
-  
-      setUserLibBalance(formatToken(libraryTokenBalance, tokenDecimals));
+    if(tokenContract && userAddress) {
+      const userLibBalance = await tokenContract.balanceOf(userAddress);
+      const contractBalance = await tokenContract.balanceOf(LIBRARY_CONTRACT_ADDRESS);
+      const tokenDecimals = await tokenContract.decimals();
+
+      console.log(`Library Contract balance: ${formatToken(contractBalance, tokenDecimals)}`);
+      console.log(`User balance: ${formatToken(userLibBalance, tokenDecimals)}`);
+
+      setUserLibBalance(formatToken(userLibBalance, tokenDecimals));
       setContractBalance(formatToken(contractBalance, tokenDecimals));
     }
   }
@@ -240,7 +243,7 @@ const App = () => {
       // Metamask Lock fire an empty accounts array 
       await resetApp();
     } else {
-      setWalletAddress(accounts[0]);
+      setUserAddress(accounts[0]);
     }
   }
 
@@ -274,12 +277,12 @@ const App = () => {
     localStorage.removeItem("walletconnect");
     await unSubscribe(web3Provider);
     await libraryContract.removeAllListeners();
-    await libToken.removeAllListeners();
+    await tokenContract.removeAllListeners();
   };
 
   const resetState = () => {
     setFetching(false);
-    setWalletAddress("");
+    setUserAddress("");
     setWeb3Library(null);
     setConnected(false);
     setChainId(1);
@@ -312,8 +315,8 @@ const App = () => {
 
   const submitBook = async () => {
     try {
-      if (bookInfo.Title && bookInfo.Copies) {
-        const transaction = await libraryContract.addBook(bookInfo.Title, +bookInfo.Copies);
+      if (newBookInfo.Title && newBookInfo.Copies) {
+        const transaction = await libraryContract.addBook(newBookInfo.Title, +newBookInfo.Copies);
         setFetching(true);
         setTransactionHash(transaction.hash)
         const receipt = await transaction.wait();
@@ -334,8 +337,8 @@ const App = () => {
   };
 
   const handleChange = (e: any) => {
-    const newInfo = {...bookInfo, [e.target.name]: e.target.value}
-    setBookInfo(newInfo);
+    const newInfo = {...newBookInfo, [e.target.name]: e.target.value}
+    setNewBookInfo(newInfo);
   };
 
   const returnBook = async (title: string) => {
@@ -368,7 +371,7 @@ const App = () => {
       const rentFeeBN = ethers.utils.parseEther(rentFee);
       if (balance >= rentFeeBN) {
         if (books.filter(b => b.Title === title).length) {
-          const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
+          const approveTx = await tokenContract.approve(libraryContract.address, rentFeeBN);
           setFetching(true);
           setTransactionHash(approveTx.hash)
           const approveTxReceipt = await approveTx.wait();
@@ -402,14 +405,27 @@ const App = () => {
       const rentFeeBN = ethers.utils.parseEther(rentFee);
       if (balance >= rentFeeBN) {
         if (books.filter(b => b.Title === title).length) {
-          const {v, r, s, deadline} = await onAttemptToApprove();
-          const borrowTx = await libraryContract.borrowBookWithPermit(title, rentFeeBN, deadline, v, r, s);
-          setTransactionHash(borrowTx.hash);
-          const borrowTxReceipt = await borrowTx.wait();
-          if(borrowTxReceipt.status !== 1) {
-            alert("Borrowing failed");
+          const preparedSignature = await onAttemptToApprove();
+          if (preparedSignature) {
+            const { v, r, s, deadline } = preparedSignature;
+            // const isValidAddress = await recoverAddressBeforePermit(preparedSignature, message);
+            const recoveredAddress = await tokenContract.getRecoveredAddress(userAddress, LIBRARY_CONTRACT_ADDRESS,
+               rentFeeBN, deadline, v, r, s );
+            if (recoveredAddress === userAddress) {
+              const borrowTx = await libraryContract.borrowBookWithPermit(title, rentFeeBN, deadline, v, r, s);
+              setTransactionHash(borrowTx.hash);
+              setFetching(true);
+              const borrowTxReceipt = await borrowTx.wait();
+              if(borrowTxReceipt.status !== 1) {
+                alert("Borrowing failed");
+              }
+            } else {
+              alert("Failed to verify signer");
+            }
+            await updateBalances();
+          } else {
+            alert("Failed to create signature");
           }
-          await updateBalances();
         }
         setFetching(false);
         setTransactionHash("")
@@ -417,50 +433,17 @@ const App = () => {
         alert("Insufficient LIB to borrow book");
       }
     } catch(err) {
+      console.log(err);
       setFetching(false);
       setTransactionHash("");
       alert("Transaction failed");
     }
   };
 
-  const borrowBookOnBehalfOf = async(title: string, receiver: string, receiverSignature: string) => {
-    try {
-      const balance = ethers.utils.parseEther(userLibBalance);
-      const rentFeeBN = ethers.utils.parseEther(rentFee);
-
-      if(balance >= rentFeeBN) {
-        if(books.filter(b => b.Title === title).length) {
-          const sig = ethers.utils.splitSignature(receiverSignature);
-
-          const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
-          setFetching(true);
-          setTransactionHash(approveTx.hash);
-          const approveTxReceipt = await approveTx.wait();
-
-          if(approveTxReceipt.status !== 1) {
-            alert(`Approval to spend ${rentFee} LIB failed`);
-          } else {
-            const borrowTx = await libraryContract.borrowOnBehalfOf(title, "", sig.v, sig.r, sig.s, receiver)      
-            
-            setTransactionHash(borrowTx.hash);
-            const borrowTxReceipt = await borrowTx.wait();
-            if(borrowTxReceipt.status !== 1) {
-              alert("Borrowing failed");
-            }
-          }
-        }
-      }
-    } catch(err) {
-      setFetching(false);
-      setTransactionHash("");
-      alert("Borrowing on behalf of failed");
-    }
-  }
-
   const withdrawLIB = async () => {
     try {
       const unwrapValue = ethers.utils.parseEther("0.01");
-      const approveTx = await libToken.approve(libWrapperContract.address, unwrapValue)
+      const approveTx = await tokenContract.approve(libWrapperContract.address, unwrapValue)
       setFetching(true);
       setTransactionHash(approveTx.hash)
       const approveTxReceipt = await approveTx.wait();
@@ -473,8 +456,8 @@ const App = () => {
         if(unwrapTxReceipt.status !== 1) {
           alert("Transaction failed");
         } else {
-          const balance = await libToken.balanceOf(walletAddress);
-          const decimals = await libToken.decimals();
+          const balance = await tokenContract.balanceOf(userAddress);
+          const decimals = await tokenContract.decimals();
           const formatedBalance = formatToken(balance, decimals);
       
           showNotification("Successfully unwrapped LIB to ETH!")
@@ -488,7 +471,35 @@ const App = () => {
     }
   }
 
-  const convertEthToLib = async () => {
+  const withdrawRent = async () => {
+    try {
+      const unwrapValue = ethers.utils.parseEther("0.01");
+      const ctBalance = ethers.utils.parseEther(contractBalance);
+      if (ctBalance >= unwrapValue) {
+        const withdrawTx = await libraryContract.withdrawLibTokens();
+        setFetching(true);
+        setTransactionHash(withdrawTx.hash);
+        const withdrawTxreceipt = withdrawTx.wait();
+        if (withdrawTxreceipt.status !== 1) {
+          alert("Withraw transaction failed");
+        } else {
+          updateBalances();
+        }
+      } else {
+        alert("Insufficient contract balance");
+      }
+      setFetching(false);
+      setTransactionHash("");
+    } catch(err) {
+      console.log(err);
+      alert("Withdrawing funds failed");
+      setFetching(false);
+      setTransactionHash("");
+    }
+  }
+
+
+  const wrapEthToLib = async () => {
     const value = "0.01"
     const wrapValue = ethers.utils.parseEther(value)
     const wrapTx = await libWrapperContract.wrap({value: wrapValue});
@@ -512,7 +523,7 @@ const App = () => {
     const value = "0.01";
     const wrapValue = ethers.utils.parseEther(value);
     const sig = ethers.utils.splitSignature(signedMessage);
-		const wrapTx = await libWrapperContract.wrapWithSignature(hashedMessage, sig.v, sig.r, sig.s, walletAddress,  {value: wrapValue})
+		const wrapTx = await libWrapperContract.wrapWithSignature(hashedMessage, sig.v, sig.r, sig.s, userAddress,  {value: wrapValue})
     setFetching(true);
     setTransactionHash(wrapTx.hash)
 
@@ -536,14 +547,14 @@ const App = () => {
           const [hashedMessage, signedMessage] = await signMessage(message);
           const sig = ethers.utils.splitSignature(signedMessage);
           console.log(sig);
-          const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
+          const approveTx = await tokenContract.approve(libraryContract.address, rentFeeBN);
           setFetching(true);
           setTransactionHash(approveTx.hash)
           const approveTxReceipt = await approveTx.wait();
           if (approveTxReceipt.status !== 1) {
             alert(`Approval to spend ${rentFee} LIB failed`);
           } else {
-            const borrowTx = await libraryContract.borrowBookWithSignature(title, hashedMessage, sig.v, sig.r, sig.s, walletAddress);
+            const borrowTx = await libraryContract.borrowBookWithSignature(title, hashedMessage, sig.v, sig.r, sig.s, userAddress);
             setTransactionHash(borrowTx.hash);
             const borrowTxReceipt = await borrowTx.wait();
             if(borrowTxReceipt.status !== 1) {
@@ -576,7 +587,7 @@ const App = () => {
               const sig = ethers.utils.splitSignature(signature);
               const hashedMessage = ethers.utils.solidityKeccak256(['string'], [message]);
               console.log(sig);
-              const approveTx = await libToken.approve(libraryContract.address, rentFeeBN);
+              const approveTx = await tokenContract.approve(libraryContract.address, rentFeeBN);
               setFetching(true);
               setTransactionHash(approveTx.hash)
               const approveTxReceipt = await approveTx.wait();
@@ -610,22 +621,20 @@ const App = () => {
     }
   };
 
-
   const signMessage = async (messageToSign: string) => {
     const signer = web3Library.getSigner();
     const messageHash = ethers.utils.solidityKeccak256(['string'], [messageToSign]);
     const arrayfiedHash = ethers.utils.arrayify(messageHash);
     const signedMessage = await signer.signMessage(arrayfiedHash);
-    console.log(signedMessage);
 
     return [messageHash, signedMessage];
   }
 
   const onAttemptToApprove = async () => {
     try {
-      const nonce = (await libToken.nonces(walletAddress)); // Our Token Contract Nonces
+      const nonce = (await tokenContract.nonces(userAddress)); // Our Token Contract Nonces
       const deadline = + new Date() + 60 * 60; // Permit with deadline which the permit is valid
-      const wrapValue = ethers.utils.parseEther("0.1"); // Value to approve for the spender to use
+      const wrapValue = ethers.utils.parseEther(rentFee); // Value to approve for the spender to use
   
       const EIP712Domain = [ // array of objects -> properties from the contract and the types of them ircwithPermit
         { name: 'name', type: 'string' },
@@ -634,9 +643,9 @@ const App = () => {
       ];
   
       const domain = {
-        name: await libToken.name(),
+        name: await tokenContract.name(),
         version: '1',
-        verifyingContract: libToken.address
+        verifyingContract: tokenContract.address
       };
   
       const Permit = [ // array of objects -> properties from erc20withpermit
@@ -648,7 +657,7 @@ const App = () => {
       ];
   
       const message = {
-        owner: walletAddress,
+        owner: userAddress,
         spender: LIBRARY_CONTRACT_ADDRESS,
         value: wrapValue.toString(),
         nonce: nonce.toHexString(),
@@ -665,7 +674,7 @@ const App = () => {
         message
       })
   
-      const signatureLike = await web3Library.send('eth_signTypedData_v4', [walletAddress, data]);
+      const signatureLike = await web3Library.send('eth_signTypedData_v4', [userAddress, data]);
       const signature = await ethers.utils.splitSignature(signatureLike)
   
       const preparedSignature = {
@@ -676,18 +685,49 @@ const App = () => {
       }
       return preparedSignature;
     } catch(err) {
-      console.log(err);
       alert("Creating signature failed");
-      return {
-        v: "",
-        r: "",
-        s: "",
-        deadline: ""
-      };
+      return null
     }
   }
 
+  const recoverAddressBeforePermit = async (preparedSignature: any, message: any) => {
+    const {owner, spender, value, nonce} = message;
+    const { v, r, s, deadline } = preparedSignature;
+  
+    const domainSeparator = await tokenContract.DOMAIN_SEPARATOR();
+    const permitTypehash = await tokenContract.PERMIT_TYPEHASH();
+    const noncePlus = nonce + 1;
+    const digest = buildDigest(domainSeparator, permitTypehash, owner, spender, value, noncePlus, deadline);
+    const hashedDigest = toBuffer(digest);
+    const recoveredAddress = ecrecover(hashedDigest, v, r, s);
+    
+    const recAddressString = bufferToHex(pubToAddress(recoveredAddress));
+    return recAddressString === userAddress;
+  }
 
+
+  const buildDigest = (domainSeparator: any, permitTypehash: any, owner:any, spender: any, value: any, nonce: any, deadline: any) =>  {
+    const messagePart = keccak256(['string'],[
+      abiCoder.encode(['string', 'string', 'string', 'string', 'string', 'string', ],[
+        permitTypehash,
+        owner,
+        spender,
+        value,
+        nonce,
+        deadline
+      ])
+    ]);
+    
+    const digest = keccak256(['string'], [
+      abiCoder.encode(['string', 'string', 'string'], [
+        `\x19\x01`,
+        domainSeparator,
+        messagePart
+        ])
+      ]);
+
+    return digest;
+  }
 
   const formatToken = (wei: BigNumberish, decimals: number = 18) => {
     return ethers.utils.formatUnits(wei, decimals);
@@ -698,7 +738,7 @@ const App = () => {
         <Column maxWidth={1000} spanHeight>
           <Header
             connected={connected}
-            address={walletAddress}
+            address={userAddress}
             chainId={chainId}
             killSession={resetApp}
           />
@@ -718,12 +758,13 @@ const App = () => {
                     <BookLibrary
                       books={books}
                       // borrowBook={borrowBook}
-                      // borrowBook={borrowBookWithPermit}
-                      borrowBook={borrowWithSignature}
+                      borrowBook={borrowBookWithPermit}
+                      // borrowBook={borrowWithSignature}
+                      borrowOnBehalfOf={borrowOnBehalfOfSignature}
                       fetchBooks={fetchBooks}
                       submitBook={submitBook}
                       handleChange={handleChange}
-                      bookInfo={bookInfo}
+                      bookInfo={newBookInfo}
                       returnBook={returnBook}
                       fetchingBooks={fetchingBooks}
                       tokenBalance={userLibBalance}
@@ -732,7 +773,7 @@ const App = () => {
                       contractBalance={contractBalance}
                       rentFee={rentFee}
                       signMessage={signMessage}
-                      borrowOnBehalfOf={borrowOnBehalfOfSignature}
+                      withdrawRent={withdrawRent}
                     />
                   </SLanding>
               }
@@ -741,4 +782,5 @@ const App = () => {
       </SLayout>
   );
 }
+
 export default App;
